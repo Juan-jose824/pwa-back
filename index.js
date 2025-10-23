@@ -6,7 +6,7 @@ const vapidKeys = {
 
 
 webpush.setVapidDetails(
-    'juanjoserivera1928@gmail.com',
+    'mailto:juanjoserivera1928@gmail.com',
   vapidKeys.publicKey,
   vapidKeys.privateKey
 );
