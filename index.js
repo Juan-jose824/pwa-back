@@ -1,10 +1,14 @@
 const webpush=require('web-push');
-const keys=require('keys.json');
+const vapidKeys = {
+  publicKey: process.env.PUBLIC_KEY,
+  privateKey: process.env.PRIVATE_KEY
+};
+
 
 webpush.setVapidDetails(
-    'mailto:sucorreo',
-    keys.pulbicKey,
-    keys.privateKey
+    'juanjoserivera1928@gmail.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
 );
 
 function sendPush(req, res){
