@@ -27,8 +27,16 @@ async function conectarMongo() {
 conectarMongo();
 
 // --- Claves VAPID (para notificaciones push) ---
-const keys = JSON.parse(fs.readFileSync("keys.json"));
-webpush.setVapidDetails("mailto:tucorreo@example.com", keys.publicKey, keys.privateKey);
+if (!process.env.PUBLIC_KEY || !process.env.PRIVATE_KEY) {
+  console.error("❌ Faltan las claves VAPID en variables de entorno");
+  process.exit(1);
+}
+
+webpush.setVapidDetails(
+  "mailto:juanjoserivera1928@gmail.com",
+  process.env.PUBLIC_KEY,
+  process.env.PRIVATE_KEY
+);
 
 let suscripcion;
 
@@ -75,4 +83,6 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("🚀 Backend corriendo en http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Backend corriendo en puerto ${PORT}`));
+
