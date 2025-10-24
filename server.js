@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: ['http://localhost:5173', 'https://pwajuanito.vercel.app'] }));
 
 // --- Conexión a MongoDB Atlas ---
 const client = new MongoClient(process.env.MONGO_URI);
