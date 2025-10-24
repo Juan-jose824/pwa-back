@@ -50,33 +50,52 @@ webpush.setVapidDetails(
   process.env.PRIVATE_KEY
 );
 
-let suscripcion;
-
 // -------------------- Endpoints --------------------
-app.post("/api/subscribe", (req, res) => {
-  suscripcion = req.body;
-  console.log("📬 Suscripción guardada en el servidor");
-  res.status(201).json({ message: "Suscripción registrada" });
-});
 
-app.post("/api/send-push", async (req, res) => {
-  if (!suscripcion) return res.status(400).json({ error: "No hay suscripción registrada" });
-
-  const payload = JSON.stringify({
-    titulo: "¡Bienvenido!",
-    mensaje: "Has iniciado sesión correctamente 🎉",
-    icon: "/icon.png"
-  });
-
+// Guardar suscripción push en MongoDB por usuario
+app.post("/api/subscribe", async (req, res) => {
   try {
-    await webpush.sendNotification(suscripcion, payload);
-    res.json({ message: "Push enviado correctamente" });
+    const { usuario, subscription } = req.body; // Frontend debe enviar {usuario, subscription}
+
+    await usuarios.updateOne(
+      { usuario },                     // busca por el nombre de usuario
+      { $set: { suscripcion: subscription } }, // guarda la suscripción
+      { upsert: true }                 // crea si no existe
+    );
+
+    console.log(`📬 Suscripción de ${usuario} guardada en MongoDB`);
+    res.status(201).json({ message: "Suscripción registrada" });
   } catch (err) {
-    console.error("❌ Error enviando push:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// Enviar notificación push
+app.post("/api/send-push", async (req, res) => {
+  try {
+    const { usuario } = req.body;
+
+    const user = await usuarios.findOne({ usuario });
+    if (!user || !user.suscripcion) {
+      return res.status(400).json({ error: "No hay suscripción registrada para este usuario" });
+    }
+
+    const payload = JSON.stringify({
+      titulo: "¡Bienvenido!",
+      mensaje: "Has iniciado sesión correctamente 🎉",
+      icon: "/icon.png"
+    });
+
+    await webpush.sendNotification(user.suscripcion, payload);
+    res.json({ message: "Push enviado correctamente" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Login
 app.post("/api/login", async (req, res) => {
   const { usuario, password } = req.body;
   try {
