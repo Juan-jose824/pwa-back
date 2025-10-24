@@ -11,16 +11,20 @@ app.use(express.json());
 // -------------------- CORS --------------------
 const allowedOrigins = ['http://localhost:5173', 'https://pwajuanito.vercel.app'];
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: (origin, callback) => {
+    // Permite peticiones sin origin (Postman) o desde dominios permitidos
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS: ${origin} no permitido`));
+      callback(null, false);
     }
   },
-  methods: ['GET','POST','PUT','DELETE'],
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
+
+// Manejo de preflight OPTIONS
+app.options('*', cors());
 
 // -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
@@ -55,12 +59,12 @@ webpush.setVapidDetails(
 // Guardar suscripción push en MongoDB por usuario
 app.post("/api/subscribe", async (req, res) => {
   try {
-    const { usuario, subscription } = req.body; // Frontend debe enviar {usuario, subscription}
+    const { usuario, subscription } = req.body; // Frontend envía {usuario, subscription}
 
     await usuarios.updateOne(
-      { usuario },                     // busca por el nombre de usuario
-      { $set: { suscripcion: subscription } }, // guarda la suscripción
-      { upsert: true }                 // crea si no existe
+      { usuario },
+      { $set: { suscripcion: subscription } },
+      { upsert: true }
     );
 
     console.log(`📬 Suscripción de ${usuario} guardada en MongoDB`);
@@ -71,7 +75,7 @@ app.post("/api/subscribe", async (req, res) => {
   }
 });
 
-// Enviar notificación push
+// Enviar notificación push a un usuario
 app.post("/api/send-push", async (req, res) => {
   try {
     const { usuario } = req.body;
