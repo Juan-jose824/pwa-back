@@ -3,22 +3,27 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import webpush from "web-push";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
 // -------------------- CORS --------------------
-const allowedOrigins = ['http://localhost:5173', 'https://pwajuanito.vercel.app'];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://pwajuanito.vercel.app"
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(null, false);
+    // Permitir requests sin origen (p. ej. Postman)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS no permitido"), false);
   },
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
-//app.options('*', cors());
 
 // -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
@@ -54,7 +59,8 @@ webpush.setVapidDetails(
 app.post("/api/subscribe", async (req, res) => {
   try {
     const { usuario, subscription } = req.body;
-    if (!usuario || !subscription) return res.status(400).json({ error: "Faltan datos" });
+    if (!usuario || !subscription)
+      return res.status(400).json({ error: "Faltan datos" });
 
     await usuarios.updateOne(
       { usuario },
@@ -74,12 +80,12 @@ app.post("/api/subscribe", async (req, res) => {
 app.post("/api/send-push", async (req, res) => {
   try {
     const { usuario } = req.body;
-    if (!usuario) return res.status(400).json({ error: "Usuario requerido" });
+    if (!usuario)
+      return res.status(400).json({ error: "Usuario requerido" });
 
     const user = await usuarios.findOne({ usuario });
-    if (!user || !user.suscripcion) {
+    if (!user || !user.suscripcion)
       return res.status(400).json({ error: "No hay suscripción registrada para este usuario" });
-    }
 
     const payload = JSON.stringify({
       titulo: "¡Bienvenido!",
@@ -89,7 +95,6 @@ app.post("/api/send-push", async (req, res) => {
 
     await webpush.sendNotification(user.suscripcion, payload);
     res.json({ message: "Push enviado correctamente" });
-
   } catch (err) {
     console.error("Error enviando push:", err);
     res.status(500).json({ error: err.message });
