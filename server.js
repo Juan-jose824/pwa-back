@@ -1,3 +1,4 @@
+// server.js
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
@@ -12,18 +13,17 @@ app.use(express.json());
 const allowedOrigins = ['http://localhost:5173', 'https://pwajuanito.vercel.app'];
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite peticiones sin origin (Postman) o desde dominios permitidos
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, false);
+      callback(new Error(`CORS: ${origin} no permitido`));
     }
   },
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
 
-// Manejo de preflight OPTIONS
+// Preflight para todos los endpoints
 app.options('*', cors());
 
 // -------------------- MongoDB --------------------
@@ -56,10 +56,13 @@ webpush.setVapidDetails(
 
 // -------------------- Endpoints --------------------
 
-// Guardar suscripción push en MongoDB por usuario
+// Guardar suscripción push en MongoDB
 app.post("/api/subscribe", async (req, res) => {
   try {
-    const { usuario, subscription } = req.body; // Frontend envía {usuario, subscription}
+    const { usuario, subscription } = req.body;
+    if (!usuario || !subscription) {
+      return res.status(400).json({ error: "Faltan datos de usuario o suscripción" });
+    }
 
     await usuarios.updateOne(
       { usuario },
@@ -67,22 +70,23 @@ app.post("/api/subscribe", async (req, res) => {
       { upsert: true }
     );
 
-    console.log(`📬 Suscripción de ${usuario} guardada en MongoDB`);
+    console.log(`📬 Suscripción de ${usuario} guardada`);
     res.status(201).json({ message: "Suscripción registrada" });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error guardando suscripción:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Enviar notificación push a un usuario
+// Enviar notificación push
 app.post("/api/send-push", async (req, res) => {
   try {
     const { usuario } = req.body;
+    if (!usuario) return res.status(400).json({ error: "Falta el usuario" });
 
     const user = await usuarios.findOne({ usuario });
     if (!user || !user.suscripcion) {
-      return res.status(400).json({ error: "No hay suscripción registrada para este usuario" });
+      return res.status(400).json({ error: "No hay suscripción para este usuario" });
     }
 
     const payload = JSON.stringify({
@@ -94,7 +98,7 @@ app.post("/api/send-push", async (req, res) => {
     await webpush.sendNotification(user.suscripcion, payload);
     res.json({ message: "Push enviado correctamente" });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error enviando push:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -102,6 +106,8 @@ app.post("/api/send-push", async (req, res) => {
 // Login
 app.post("/api/login", async (req, res) => {
   const { usuario, password } = req.body;
+  if (!usuario || !password) return res.status(400).json({ message: "Faltan credenciales" });
+
   try {
     const user = await usuarios.findOne({ usuario, password });
     if (user) {
