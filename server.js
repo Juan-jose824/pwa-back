@@ -18,7 +18,7 @@ app.use(cors({
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
-app.options('*', cors());
+//app.options('*', cors());
 
 // -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
