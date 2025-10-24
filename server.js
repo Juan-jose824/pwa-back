@@ -2,22 +2,34 @@ import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import webpush from "web-push";
-import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: ['http://localhost:5173', 'https://pwajuanito.vercel.app'] }));
 
-// --- Conexión a MongoDB Atlas ---
+// -------------------- CORS --------------------
+const allowedOrigins = ['http://localhost:5173', 'https://pwajuanito.vercel.app'];
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: ${origin} no permitido`));
+    }
+  },
+  methods: ['GET','POST','PUT','DELETE'],
+  credentials: true
+}));
+
+// -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
 let usuarios;
 
 async function conectarMongo() {
   try {
     await client.connect();
-    const db = client.db("loginpy"); // tu base
+    const db = client.db("loginpy");
     usuarios = db.collection("usuarios");
     console.log("✅ Conectado a MongoDB Atlas (loginpy)");
   } catch (err) {
@@ -26,7 +38,7 @@ async function conectarMongo() {
 }
 conectarMongo();
 
-// --- Claves VAPID (para notificaciones push) ---
+// -------------------- VAPID --------------------
 if (!process.env.PUBLIC_KEY || !process.env.PRIVATE_KEY) {
   console.error("❌ Faltan las claves VAPID en variables de entorno");
   process.exit(1);
@@ -40,14 +52,13 @@ webpush.setVapidDetails(
 
 let suscripcion;
 
-// --- Endpoint: Registrar suscripción desde frontend ---
+// -------------------- Endpoints --------------------
 app.post("/api/subscribe", (req, res) => {
   suscripcion = req.body;
   console.log("📬 Suscripción guardada en el servidor");
   res.status(201).json({ message: "Suscripción registrada" });
 });
 
-// --- Endpoint: Enviar notificación push ---
 app.post("/api/send-push", async (req, res) => {
   if (!suscripcion) return res.status(400).json({ error: "No hay suscripción registrada" });
 
@@ -66,7 +77,6 @@ app.post("/api/send-push", async (req, res) => {
   }
 });
 
-// --- Endpoint: Login con MongoDB ---
 app.post("/api/login", async (req, res) => {
   const { usuario, password } = req.body;
   try {
@@ -83,6 +93,6 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// -------------------- Server --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend corriendo en puerto ${PORT}`));
-
