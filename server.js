@@ -18,8 +18,7 @@ app.use(cors({
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
-
-app.options('*', cors()); // Manejo de preflight OPTIONS
+app.options('*', cors());
 
 // -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
@@ -51,7 +50,7 @@ webpush.setVapidDetails(
 
 // -------------------- Endpoints --------------------
 
-// Guardar suscripción push en MongoDB
+// Guardar suscripción push
 app.post("/api/subscribe", async (req, res) => {
   try {
     const { usuario, subscription } = req.body;
@@ -66,12 +65,12 @@ app.post("/api/subscribe", async (req, res) => {
     console.log(`📬 Suscripción de ${usuario} guardada`);
     res.status(201).json({ message: "Suscripción registrada" });
   } catch (err) {
-    console.error(err);
+    console.error("Error en subscribe:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Enviar notificación push a un usuario
+// Enviar notificación push
 app.post("/api/send-push", async (req, res) => {
   try {
     const { usuario } = req.body;
