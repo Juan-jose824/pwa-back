@@ -17,13 +17,17 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir requests sin origen (p. ej. Postman)
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error("CORS no permitido"), false);
   },
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  credentials: true
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
+
+// Manejar todas las requests OPTIONS para preflight
+app.options("*", cors());
 
 // -------------------- MongoDB --------------------
 const client = new MongoClient(process.env.MONGO_URI);
@@ -54,8 +58,6 @@ webpush.setVapidDetails(
 );
 
 // -------------------- Endpoints --------------------
-
-// Guardar suscripción push
 app.post("/api/subscribe", async (req, res) => {
   try {
     const { usuario, subscription } = req.body;
@@ -76,12 +78,10 @@ app.post("/api/subscribe", async (req, res) => {
   }
 });
 
-// Enviar notificación push
 app.post("/api/send-push", async (req, res) => {
   try {
     const { usuario } = req.body;
-    if (!usuario)
-      return res.status(400).json({ error: "Usuario requerido" });
+    if (!usuario) return res.status(400).json({ error: "Usuario requerido" });
 
     const user = await usuarios.findOne({ usuario });
     if (!user || !user.suscripcion)
@@ -101,7 +101,6 @@ app.post("/api/send-push", async (req, res) => {
   }
 });
 
-// Login
 app.post("/api/login", async (req, res) => {
   const { usuario, password } = req.body;
   try {
