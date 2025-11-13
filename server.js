@@ -241,12 +241,8 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
       return res.json({ message: "Push enviado correctamente" });
     } catch (errPush) {
       console.error(`⚠️ Error enviando push a ${target.usuario}:`, errPush);
-      // Eliminar suscripción inválida
       if (errPush.statusCode === 410 || errPush.statusCode === 404) {
-        await usuarios.updateOne(
-          { _id: target._id },
-          { $set: { suscripcion: null } }
-        );
+        await usuarios.updateOne({ _id: target._id }, { $set: { suscripcion: null } });
         console.log(`Suscripción inválida eliminada para ${target.usuario}`);
       }
       return res.status(500).json({ message: "Error enviando push", error: errPush.body || errPush.message });
@@ -255,6 +251,18 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Error /api/send-push/:id:", err);
     return res.status(500).json({ message: "Error interno", error: err.message });
+  }
+});
+
+// 🔧 Ruta temporal para resetear todas las suscripciones (solo usar una vez)
+app.get("/api/reset-suscripcion", async (req, res) => {
+  try {
+    const result = await usuarios.updateMany({}, { $set: { suscripcion: null } });
+    res.json({ ok: true, modificados: result.modifiedCount });
+    console.log(`✅ Suscripciones reseteadas (${result.modifiedCount} documentos modificados)`);
+  } catch (err) {
+    console.error("❌ Error reseteando suscripciones:", err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
