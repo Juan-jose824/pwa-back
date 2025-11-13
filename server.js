@@ -212,7 +212,7 @@ app.get("/api/users", authMiddleware, async (req, res) => {
   }
 });
 
-// Enviar push a usuario (admin) con validación robusta
+// Enviar push a usuario (admin)
 app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ message: "No autorizado" });
@@ -254,16 +254,5 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// 🔧 Ruta temporal para resetear todas las suscripciones (solo usar una vez)
-app.get("/api/reset-suscripcion", async (req, res) => {
-  try {
-    const result = await usuarios.updateMany({}, { $set: { suscripcion: null } });
-    res.json({ ok: true, modificados: result.modifiedCount });
-    console.log(`✅ Suscripciones reseteadas (${result.modifiedCount} documentos modificados)`);
-  } catch (err) {
-    console.error("❌ Error reseteando suscripciones:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
+// 🚀 Iniciar servidor
 app.listen(PORT, () => console.log(`🚀 Backend corriendo en puerto ${PORT}`));
