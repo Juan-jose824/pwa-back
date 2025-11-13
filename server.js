@@ -212,18 +212,19 @@ app.get("/api/users", authMiddleware, async (req, res) => {
   }
 });
 
-// Enviar push a usuario (admin) con validación
+// Enviar push a usuario (admin) con validación robusta
 app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ message: "No autorizado" });
 
     const userId = req.params.id;
-    if (!ObjectId.isValid(userId)) return res.status(400).json({ message: "id inválido" });
+    if (!ObjectId.isValid(userId)) return res.status(400).json({ message: "ID inválido" });
 
     const { title, body } = req.body;
-    const target = await usuarios.findOne({ _id: new ObjectId(userId) });
 
+    const target = await usuarios.findOne({ _id: new ObjectId(userId) });
     if (!target) return res.status(404).json({ message: "Usuario no encontrado" });
+
     if (!target.suscripcion || !target.suscripcion.endpoint) {
       return res.status(400).json({ message: "Usuario objetivo no tiene suscripción válida" });
     }
@@ -236,10 +237,19 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
 
     try {
       await webpush.sendNotification(target.suscripcion, payload, { TTL: 60 });
+      console.log(`✅ Push enviado a ${target.usuario}`);
       return res.json({ message: "Push enviado correctamente" });
     } catch (errPush) {
-      console.error("Error enviando push a usuario:", errPush);
-      return res.status(500).json({ message: "Error enviando push", error: errPush.message });
+      console.error(`⚠️ Error enviando push a ${target.usuario}:`, errPush);
+      // Eliminar suscripción inválida
+      if (errPush.statusCode === 410 || errPush.statusCode === 404) {
+        await usuarios.updateOne(
+          { _id: target._id },
+          { $set: { suscripcion: null } }
+        );
+        console.log(`Suscripción inválida eliminada para ${target.usuario}`);
+      }
+      return res.status(500).json({ message: "Error enviando push", error: errPush.body || errPush.message });
     }
 
   } catch (err) {
