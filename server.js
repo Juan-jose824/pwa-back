@@ -51,7 +51,7 @@ app.use(express.json());
 // ---- CORS: permite tu front dev + deploy
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://pwajuanito.vercel.app",
+  "https://pwa-fe-theta.vercel.app",
   // agrega dominios de producción si los tienes
 ];
 
