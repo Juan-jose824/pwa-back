@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "cambiame_esto_en_produccion";
 
-// ---------- leer keys.json (VAPID) ----------
+// ---------- Leer keys.json (VAPID) ----------
 let VAPID_PUBLIC_KEY = null;
 let VAPID_PRIVATE_KEY = null;
 try {
@@ -27,7 +27,7 @@ try {
   console.warn("⚠️ keys.json no encontrado o inválido. Push no funcionará hasta agregar las claves VAPID.");
 }
 
-// configurar web-push (si hay claves)
+// Configurar web-push
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     "mailto:tu-email@example.com",
@@ -44,7 +44,10 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://pwa-fe-theta.vercel.app",
 ];
-app.use(cors({ origin: (origin, cb) => (!origin || allowedOrigins.includes(origin)) ? cb(null,true) : cb(new Error("CORS no permitido"), false) }));
+app.use(cors({
+  origin: (origin, cb) =>
+    (!origin || allowedOrigins.includes(origin)) ? cb(null, true) : cb(new Error("CORS no permitido"), false)
+}));
 
 // ---------- MongoDB ----------
 if (!MONGO_URI) {
@@ -88,6 +91,7 @@ await initDB();
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || "7d" });
 }
+
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: "No token" });
@@ -208,7 +212,7 @@ app.get("/api/users", authMiddleware, async (req, res) => {
   }
 });
 
-// Enviar push a usuario (admin)
+// Enviar push a usuario (admin) con validación
 app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ message: "No autorizado" });
@@ -218,7 +222,11 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
 
     const { title, body } = req.body;
     const target = await usuarios.findOne({ _id: new ObjectId(userId) });
-    if (!target || !target.suscripcion) return res.status(404).json({ message: "Usuario objetivo no suscrito" });
+
+    if (!target) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (!target.suscripcion || !target.suscripcion.endpoint) {
+      return res.status(400).json({ message: "Usuario objetivo no tiene suscripción válida" });
+    }
 
     const payload = JSON.stringify({
       titulo: title || "Notificación",
@@ -226,11 +234,17 @@ app.post("/api/send-push/:id", authMiddleware, async (req, res) => {
       icon: "/assets/img/icon3.png"
     });
 
-    await webpush.sendNotification(target.suscripcion, payload, { TTL: 60 });
-    return res.json({ message: "Push enviado" });
+    try {
+      await webpush.sendNotification(target.suscripcion, payload, { TTL: 60 });
+      return res.json({ message: "Push enviado correctamente" });
+    } catch (errPush) {
+      console.error("Error enviando push a usuario:", errPush);
+      return res.status(500).json({ message: "Error enviando push", error: errPush.message });
+    }
+
   } catch (err) {
     console.error("Error /api/send-push/:id:", err);
-    return res.status(500).json({ message: "Error interno" });
+    return res.status(500).json({ message: "Error interno", error: err.message });
   }
 });
 
